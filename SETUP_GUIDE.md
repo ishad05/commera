@@ -432,6 +432,25 @@ bench get-app https://github.com/cinnamonlabs/tabby_frappe
 bench --site your-site-name install-app tabby_frappe
 ```
 
+#### PayPal
+1. Navigate to: **Desk → BWH Payments → PayPal Gateway Settings**
+2. Enter the Client ID, Client Secret and Webhook ID from the PayPal dashboard, and pick Sandbox or Live
+3. Set the redirect URLs:
+   - Success: `https://<your-site>/en/account/orders/confirmation`
+   - Cancelled: `https://<your-site>/en/cart`
+   - Failure: `https://<your-site>/en/cart/checkout`
+4. Create a **Payment Gateway Profile** named `PayPal` pointing at `PayPal Gateway Settings`, and enable it
+5. Run `bench --site your-site-name migrate` so the matching `Mode of Payment` is created
+6. Set a default company account on the `PayPal` Mode of Payment
+7. In the PayPal dashboard, add a public HTTPS webhook at
+   `https://<your-site>/api/method/bwh_payments.bwh_payments.webhook.handle?gateway=PayPal`
+   subscribed to `CHECKOUT.ORDER.APPROVED` and `PAYMENT.CAPTURE.COMPLETED`
+8. Copy the webhook ID returned by PayPal into `PayPal Gateway Settings`. A label or placeholder is not
+   a valid webhook ID.
+
+> PayPal cannot take payment in SAR, AED, KWD, BHD, QAR or INR. Checkout filters the payment methods it
+> offers by the cart's currency, so it appears only for carts in a currency it can settle.
+
 ### Multi-Store Support
 
 LS Shop supports multiple physical store locations for pickup orders.
@@ -601,7 +620,7 @@ LS Shop is developed and maintained by **BWH Studios** - Specializing in Frappe 
 
 ---
 
-**Last Updated**: 2025-10-03
+**Last Updated**: 2026-09-13
 **Version**: 1.0
 
 For the latest updates and detailed documentation, visit the [LS Shop GitHub Repository](https://github.com/BuildWithHussain/ls_shop).

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ frappe.lang or 'en' }}" dir="{{ 'rtl' if frappe.lang == 'ar' else 'ltr' }}">
 {% from "templates/macros/seo.html" import seo_meta, json_ld_block %}
 {% set settings = frappe.get_cached_doc("Lifestyle Settings", "Lifestyle Settings") %}
 {% set store_name = settings.store_name or "Lifestyle" %}
@@ -26,7 +26,9 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{{ favicon }}">
 
 
-    <link rel="stylesheet" href="/assets/ls_shop/css/tailwind.css">
+    {# /assets is served with a long max-age, so without the build stamp returning shoppers
+       keep the previous stylesheet after a deploy. #}
+    <link rel="stylesheet" href="/assets/ls_shop/css/tailwind.css?v={{ build_version }}">
     
     <!-- Dynamic Theme CSS -->
     {{ format_theme_css()|safe }}
@@ -80,7 +82,9 @@
    menu; a page controller may pre-supply it to avoid the second lookup. #}
 {% set header_data = header_data if header_data is defined and header_data else get_header_data() %}
 
-<body x-data dir="auto">
+{# dir="auto" resolves from the first strong character in the page, which is Latin on most
+   storefronts - it silently overrode the document direction and kept the Arabic site LTR. #}
+<body x-data>
     {% block header %}{% include "templates/includes/header.html" %}{% endblock %}
 
     <main class="relative" x-data="toaster">

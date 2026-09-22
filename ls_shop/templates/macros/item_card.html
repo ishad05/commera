@@ -42,7 +42,7 @@
 <div class="flex flex-col w-fit">
     <div class="relative w-fit ">
         <div class="w-fit overflow-hidden rounded-lg">
-            <img src="{{ image }}" alt="" class="{{image_size}} object-cover rounded-lg transition duration-300 ease-in-out hover:scale-110" />
+            <img src="{{ image }}" alt="{{ product_name }}" loading="lazy" class="{{image_size}} object-cover rounded-lg bg-gray-100 ring-1 ring-gray-200 transition duration-300 ease-in-out hover:scale-110" />
         </div>
         {# Discount Badge #}
         {% if discount %}
@@ -86,14 +86,14 @@
     </div>
 
     {# Product Details #}
-    <h3 class="mt-6 font-medium text-link {{  current_variant.brand_size  }}" title="{{_(brand|title)}}">
-        {{_(brand|title)}}
+    <h3 class="mt-6 font-medium text-link {{  current_variant.brand_size  }}" title="{{_(brand)}}">
+        {{_(brand)}}
     </h3>
-    <h4 class="{{ current_variant.product_name_size }}" title="{{_(product_name|title)}}">
+    <h4 class="{{ current_variant.product_name_size }}" title="{{_(product_name)}}">
         {% if product_name|length > 25 %}
-        {{ _(product_name[:25]|title) }}...
+        {{ _(product_name[:25]) }}...
         {% else %}
-        {{ _(product_name|title) }}
+        {{ _(product_name) }}
         {% endif %}
         {{_(attribute_value|title)}}
     </h4>

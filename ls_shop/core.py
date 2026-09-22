@@ -32,10 +32,47 @@ def _get_default_territory() -> str:
 	return frappe.db.get_single_value("Selling Settings", "territory") or get_root_of("Territory")
 
 
+def _get_default_customer_group() -> str:
+	"""A non-group Customer Group for self-registering shoppers.
+
+	ERPNext rejects a group node here, so the root is not a usable fallback the way it is for
+	Territory.
+	"""
+	configured = frappe.db.get_single_value("Selling Settings", "customer_group")
+	if configured and not frappe.db.get_value("Customer Group", configured, "is_group"):
+		return configured
+
+	# "Individual" matches the customer_type these shoppers are created with.
+	if frappe.db.exists("Customer Group", {"name": "Individual", "is_group": 0}):
+		return "Individual"
+
+	return frappe.db.get_value("Customer Group", {"is_group": 0}, "name")
+
+
+def _link_contact_to_customer(contact_name: str | None, customer: str):
+	if not contact_name:
+		return
+	if frappe.db.exists(
+		"Dynamic Link",
+		{
+			"parent": contact_name,
+			"parenttype": "Contact",
+			"link_doctype": "Customer",
+			"link_name": customer,
+		},
+	):
+		return
+	contact = frappe.get_doc("Contact", contact_name)
+	contact.append("links", {"link_doctype": "Customer", "link_name": customer})
+	contact.flags.ignore_permissions = True
+	contact.flags.ignore_mandatory = True
+	contact.save()
+
+
 def _create_party_for_user(user: str):
 	fullname = get_fullname(user) or user
 	customer = frappe.new_doc("Customer")
-	customer_group = frappe.db.get_single_value("Lifestyle Settings", "Lifestyle Settings", "customer_group")
+	customer_group = _get_default_customer_group()
 	customer.update(
 		{
 			"customer_name": fullname,
@@ -82,6 +119,9 @@ def get_party(user=None):
 
 	if portal_party := frappe.db.get_value("Portal User", {"user": user}, "parent"):
 		if frappe.db.exists("Customer", portal_party):
+			# A Portal User row added from the desk leaves the shopper's Contact unlinked, and
+			# ERPNext then rejects the cart with "Contact Person does not belong to <customer>".
+			_link_contact_to_customer(contact_name, portal_party)
 			return frappe.get_cached_doc("Customer", portal_party)
 
 	return _create_party_for_user(user)

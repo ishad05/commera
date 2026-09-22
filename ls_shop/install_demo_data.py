@@ -244,20 +244,28 @@ def create_shipping_rule():
 
 def ensure_warehouse_exists():
 	"""Ensure a warehouse exists for demo data"""
-	# Try to find existing non-group warehouse
-	warehouse = frappe.db.get_value("Warehouse", {"is_group": 0}, "name")
-
-	if warehouse:
-		return warehouse
-
 	# Get company
 	company = frappe.defaults.get_user_default("Company") or frappe.db.get_value("Company", {}, "name")
 
 	if not company:
 		frappe.throw(_("Please create a Company first before running demo data"))
 
-	# Create default warehouse
+	# Prefer the company's selling warehouse over an arbitrary non-group one, so demo stock
+	# does not land in a transit/WIP warehouse.
 	company_abbr = frappe.db.get_value("Company", company, "abbr")
+	for candidate in (
+		frappe.db.get_value("Company", company, "default_warehouse_for_sales_return"),
+		f"Stores - {company_abbr}",
+	):
+		if candidate and frappe.db.exists("Warehouse", {"name": candidate, "is_group": 0}):
+			return candidate
+
+	warehouse = frappe.db.get_value("Warehouse", {"is_group": 0, "company": company}, "name")
+
+	if warehouse:
+		return warehouse
+
+	# Create default warehouse
 	warehouse_name = f"Stores - {company_abbr}"
 
 	if not frappe.db.exists("Warehouse", warehouse_name):
@@ -285,6 +293,9 @@ def configure_lifestyle_settings():
 		settings = frappe.get_doc({"doctype": "Lifestyle Settings"})
 
 	# Configure settings
+	settings.company = frappe.defaults.get_user_default("Company") or frappe.db.get_value(
+		"Company", {}, "name"
+	)
 	settings.default_price_list = "Standard Selling"
 	settings.sale_price_list = "Sale Price List"
 	settings.ecommerce_warehouse = warehouse
@@ -295,6 +306,15 @@ def configure_lifestyle_settings():
 	settings.cod_enabled = 1
 	settings.cod_charge = 5.00
 	settings.cod_charge_applicable_below = 100.00
+	# set_cod_charges posts the surcharge against this account, so COD checkout below the
+	# threshold throws without it. Reuse whatever the shipping rule already bills to.
+	settings.charge_account_head = frappe.db.get_value(
+		"Shipping Rule", "Standard Shipping", "account"
+	) or frappe.db.get_value(
+		"Account",
+		{"account_name": "Freight and Forwarding Charges", "company": settings.company, "is_group": 0},
+		"name",
+	)
 
 	# Email templates (use existing from fixtures)
 	settings.order_confirmation_email_template = "Order Confirmation"
@@ -659,6 +679,10 @@ def create_website_items():
 	"""Create and publish Website Items for all demo products"""
 	print("  - Creating Website Items...")
 
+	if not frappe.db.exists("DocType", "Website Item"):
+		print("    • Skipping - Website Item not available (webshop app not installed)")
+		return
+
 	# Get all demo items (variants only, not templates)
 	items = frappe.get_all(
 		"Item",
@@ -745,7 +769,11 @@ def fix_product_routes():
 				sav_count += 1
 
 	# Fix Website Item routes
-	website_items = frappe.get_all("Website Item", fields=["name", "item_code", "route"])
+	website_items = (
+		frappe.get_all("Website Item", fields=["name", "item_code", "route"])
+		if frappe.db.exists("DocType", "Website Item")
+		else []
+	)
 	wi_count = 0
 
 	for wi in website_items:
@@ -840,7 +868,8 @@ def create_ecommerce_categories():
 			"category_name": "Engine Parts",
 			"display_name": "Engine Parts",
 			"route_slug": "engine-parts",
-			"item_group": "Engine Parts",  # Links to Item Group created above
+			"link_type": "Item Group",
+			"link_item_groups": [{"item_group": "Engine Parts"}],
 			"enabled": 1,
 			"display_order": 1,
 		},
@@ -848,7 +877,8 @@ def create_ecommerce_categories():
 			"category_name": "Brake System",
 			"display_name": "Brake System",
 			"route_slug": "brake-system",
-			"item_group": "Brake System",  # Links to Item Group created above
+			"link_type": "Item Group",
+			"link_item_groups": [{"item_group": "Brake System"}],
 			"enabled": 1,
 			"display_order": 2,
 		},
@@ -856,7 +886,8 @@ def create_ecommerce_categories():
 			"category_name": "Interior Accessories",
 			"display_name": "Interior Accessories",
 			"route_slug": "interior-accessories",
-			"item_group": "Interior Accessories",  # Links to Item Group created above
+			"link_type": "Item Group",
+			"link_item_groups": [{"item_group": "Interior Accessories"}],
 			"enabled": 1,
 			"display_order": 3,
 		},

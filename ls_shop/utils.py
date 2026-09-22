@@ -324,9 +324,13 @@ def format_theme_css():
 	return frappe.get_cached_doc("Lifestyle Settings", "Lifestyle Settings").generate_theme_css()
 
 
+def get_store_currency():
+	return frappe.get_cached_value("Global Defaults", "Global Defaults", "default_currency")
+
+
 def get_currency_symbol():
-	currency = frappe.get_cached_value("Global Defaults", "Global Defaults", "default_currency")
-	if currency == "SAR" or frappe.conf.developer_mode:
+	currency = get_store_currency()
+	if currency == "SAR":
 		return '<span class="saudi-currency-symbol pe-0.5"></span>'
 	return frappe.get_cached_value("Currency", currency, "symbol")
 
@@ -391,6 +395,41 @@ def add_roles(doc, method):
 
 	for role in roles_to_add:
 		doc.append("roles", {"role": role})
+
+
+STOREFRONT_LANGS = ("en", "ar")
+DEFAULT_STOREFRONT_LANG = "en"
+
+
+def storefront_lang() -> str:
+	"""The language segment to build storefront URLs from.
+
+	before_request only pins frappe.local.lang for /en and /ar paths, so on an /api/ call it is
+	still the user's own language ("en-US"). Building a URL from that lands the shopper on the
+	catch-all redirect, which drops the query string.
+	"""
+	lang = (frappe.local.lang or "").lower()
+	if lang in STOREFRONT_LANGS:
+		return lang
+
+	base = lang.replace("_", "-").split("-")[0]
+	return base if base in STOREFRONT_LANGS else DEFAULT_STOREFRONT_LANG
+
+
+def localized_url(url: str) -> str:
+	"""Prefix an internal, root-relative link with the language the shopper is browsing in.
+
+	Footer links are authored as plain paths ("/account/orders"), which otherwise fall through
+	the catch-all route rule and land the shopper back on the English page.
+	"""
+	if not url or not url.startswith("/"):
+		return url or "#"
+
+	head = url.split("/", 2)[1]
+	if head in STOREFRONT_LANGS:
+		return get_local_lang_url(url)
+
+	return f"/{frappe.local.lang}{url}"
 
 
 def get_local_lang_url(path: str) -> str:

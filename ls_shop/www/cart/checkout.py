@@ -1,5 +1,5 @@
 import frappe
-from bwh_payments.bwh_payments.utils import get_available_payment_modes
+from bwh_payments.bwh_payments.utils import get_payment_modes_for_currency
 from frappe.query_builder import DocType
 from frappe.utils.caching import site_cache
 
@@ -27,7 +27,9 @@ def get_context(context):
 		frappe.redirect(f"/{frappe.local.lang}/cart")
 	lifestyle_settings = frappe.get_cached_doc("Lifestyle Settings")
 	default_price_list = lifestyle_settings.get("default_price_list")
-	context.payment_gateways = get_available_payment_modes()
+	# Filtered by the cart's own currency: PayPal cannot settle SAR and Tabby settles nothing else, so
+	# offering every enabled gateway sends the shopper to a checkout that refuses them at the last step.
+	context.payment_gateways = get_payment_modes_for_currency(cart_quotation.currency)
 	context.show_cod = lifestyle_settings.get("cod_enabled", 0)
 	context.cart_quotation = cart_quotation
 	context.coupon_code = get_coupon_code(cart_quotation)

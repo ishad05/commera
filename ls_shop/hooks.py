@@ -158,6 +158,8 @@ jinja = {
 	"methods": [
 		"ls_shop.utils.format_theme_css",
 		"ls_shop.utils.get_currency_symbol",
+		"ls_shop.utils.get_store_currency",
+		"ls_shop.utils.localized_url",
 		"ls_shop.search.result_card.get_search_result_fields",
 		"ls_shop.seo_jinja",
 		"ls_shop.shop_data.get_header_data",

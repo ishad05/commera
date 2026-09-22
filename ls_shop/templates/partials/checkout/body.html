@@ -367,6 +367,11 @@
             <template x-if="billing_address_filled">
                 <div class="space-y-10">
                     <h2 class="text-lg font-semibold text-secondary-accent border-b border-gray-200 pb-4 my-5">{{ _("Payment method") }}</h2>
+                    {% if not payment_gateways and not show_cod %}
+                    <div class="p-4 text-sm bg-white border rounded-lg border-gray-200/70 text-red-600">
+                        {{ _("No payment method is available for orders in this currency. Please contact us and we will help you complete your order.") }}
+                    </div>
+                    {% else %}
                     <div class="space-y-3">
                         {% for gateway_name in payment_gateways %}
                         <label
@@ -415,6 +420,7 @@
 							</div>
                        
                     </button>
+                    {% endif %}
                 </div>
             </template>
         </div>

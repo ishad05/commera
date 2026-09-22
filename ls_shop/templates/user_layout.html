@@ -11,7 +11,9 @@
     ]
 %}
 
-{% set route = frappe.request.path.split('/') %}
+{# `path` is the resolved template path (account/orders/index.html); `pathname` keeps the
+   request path the shopper actually visited. #}
+{% set route = (pathname or path).split('/') %}
 {% set current_page = route[-1]|title %}
 
 

@@ -41,7 +41,7 @@
                 {% for link in section.footer_links|sort(attribute='link_order') %}
                   {% if link.enabled %}
                     <li class="mb-2">
-                      <a href="{{ link.link_url }}" class="text-xs text-gray-300 hover:text-white">{{ _(link.link_label) }}</a>
+                      <a href="{{ localized_url(link.link_url) }}" class="text-xs text-gray-300 hover:text-white">{{ _(link.link_label) }}</a>
                     </li>
                   {% endif %}
                 {% endfor %}

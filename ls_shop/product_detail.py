@@ -5,6 +5,22 @@ from ls_shop.utils import get_available_stock
 DEFAULT_PRODUCT_IMAGE = "/assets/ls_shop/images/1.jpg"
 
 SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"]
+# Word-form sizes (ERPNext's stock "Size" attribute ships these) map onto the same scale,
+# otherwise they all sort equal and render in insertion order.
+SIZE_ALIASES = {
+	"EXTRA SMALL": "XS",
+	"SMALL": "S",
+	"MEDIUM": "M",
+	"LARGE": "L",
+	"EXTRA LARGE": "XL",
+	"EXTRA EXTRA LARGE": "XXL",
+}
+
+
+def size_sort_key(size):
+	label = size.upper()
+	label = SIZE_ALIASES.get(label, label)
+	return SIZE_ORDER.index(label) if label in SIZE_ORDER else 999
 
 
 def get_product_detail(route, selected_size=None):
@@ -66,12 +82,7 @@ def get_available_sizes(product_variant, warehouse):
 	try:
 		float(sizes[0]["size"])
 	except ValueError:
-		return sorted(
-			sizes,
-			key=lambda row: SIZE_ORDER.index(row["size"].upper())
-			if row["size"].upper() in SIZE_ORDER
-			else 999,
-		)
+		return sorted(sizes, key=lambda row: size_sort_key(row["size"]))
 
 	return sorted(sizes, key=lambda row: float(row["size"]))
 

@@ -140,8 +140,18 @@ website_route_rules = [
 ]
 ```
 
-### Payment Gateway Integration
-The app supports various payment gateways. For Tabby BNPL integration, check out our companion app: [tabby_frappe](https://github.com/cinnamonlabs/tabby_frappe)
+### Payment gateway integration
+
+LS Shop reads enabled gateway profiles from `bwh_payments`. Checkout filters those profiles by the
+cart currency before it renders them. Stripe, Telr, Razorpay, Tabby, and PayPal can therefore share the
+same checkout flow without gateway-specific template code.
+
+PayPal uses the Orders v2 hosted checkout and supports currencies such as USD, EUR, GBP, CAD, and AUD.
+It does not accept SAR, AED, KWD, BHD, QAR, or INR, so it is hidden for carts in those currencies.
+Configure its credentials, redirect URLs, profile, Mode of Payment account, and webhook as described in
+[SETUP_GUIDE.md](SETUP_GUIDE.md#paypal).
+
+For Tabby BNPL, use the `Tabby Gateway Settings` supplied by `bwh_payments`.
 
 
 ## 🏢 About BWH Studios

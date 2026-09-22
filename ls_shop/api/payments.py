@@ -13,7 +13,7 @@ from frappe.utils.data import flt
 
 from ls_shop.analytics.events import log_purchase, set_attribution_fields
 from ls_shop.core import _get_cart_quotation
-from ls_shop.utils import get_cod_configuration
+from ls_shop.utils import get_cod_configuration, storefront_lang
 
 COD_PAYMENT_MODE = "COD"
 
@@ -59,7 +59,7 @@ def validate_cart_is_not_in_checkout(quotation_name: str):
 
 
 def get_confirmation_url(reference_id: str, payment_mode: str | None = None) -> str:
-	url = f"/{frappe.local.lang}/account/orders/confirmation?reference_id={reference_id}"
+	url = f"/{storefront_lang()}/account/orders/confirmation?reference_id={reference_id}"
 	if payment_mode:
 		url = f"{url}&payment_mode={payment_mode}"
 	return url
@@ -116,6 +116,18 @@ def initiate_checkout_with_mode(payment_mode: str):
 	return {"order_url": payment_request.order_url}
 
 
+def save_cart_quotation(quotation):
+	"""Persist a shopper's own cart Quotation.
+
+	Every Quotation save runs ERPNext's get_item_details, which calls Item.check_permission()
+	directly - ignore_permissions never reaches it, only the session user does, and a shopper
+	holds just the Customer role, which carries no read on Item.
+	"""
+	with system_user_session():
+		quotation.flags.ignore_permissions = True
+		quotation.save()
+
+
 def gateway_mode_of_payment(gateway: str) -> str:
 	mode_of_payment = frappe.db.get_value("Mode of Payment", (gateway or "").strip(), "name")
 	if not mode_of_payment:
@@ -131,13 +143,22 @@ def system_user_session():
 	resolves the receivable account through get_party_account, whose account_perm_check calls
 	frappe.has_permission directly (accounts/party.py) — no ignore_permissions flag reaches it, only the
 	user identity does. bwh_payments' webhook switches the same way before applying a gateway status.
+
+	frappe.set_user is built for background jobs: it overwrites session.sid with the username and
+	empties session.data. Inside a web request that orphans the shopper's session row, so the very
+	next request arrives as Guest — hence the explicit restore rather than a second set_user.
 	"""
-	session_user = frappe.session.user
+	session = frappe.local.session
+	saved_user, saved_sid, saved_data = session.user, session.sid, session.data
+	saved_form_dict = frappe.local.form_dict
 	try:
 		frappe.set_user("Administrator")
 		yield
 	finally:
-		frappe.set_user(session_user)
+		frappe.set_user(saved_user)
+		session.sid = saved_sid
+		session.data = saved_data
+		frappe.local.form_dict = saved_form_dict
 
 
 def place_order(quotation, payment_mode: str, gateway_amount=None, gateway_reference=None):
@@ -212,9 +233,15 @@ def generate_quotation_for_cart(cart: dict):
 		frappe.throw(_("Can't checkout with empty cart"))
 	quotation = _get_cart_quotation()
 	validate_cart_is_not_in_checkout(quotation.name)
-	cart_quotation = get_quotation_for_cart(cart, quotation)
-	remove_coupon_code()
-	return cart_quotation
+	# Every save below runs ERPNext's get_item_details, which calls Item.check_permission()
+	# directly - ignore_permissions never reaches it, only the session user does, and a shopper
+	# holds just the Customer role, which carries no read on Item. Same reason place_order and
+	# place_cod_order elevate.
+	# get_quotation_for_cart already clears the coupon on the document it builds. Calling the
+	# whitelisted remove_coupon_code() again re-fetched a cached Quotation, so the totals were
+	# recomputed against a stale copy and the save blew up in set_total_in_words.
+	with system_user_session():
+		return get_quotation_for_cart(cart, quotation)
 
 
 def get_quotation_for_cart(cart: dict, unsaved_quotation_doc):
@@ -274,8 +301,7 @@ def set_cod_charges(quotation):
 	}
 	quotation.append("taxes", cod_charge)
 	quotation.calculate_taxes_and_totals()
-	quotation.flags.ignore_permissions = True
-	quotation.save()
+	save_cart_quotation(quotation)
 
 
 @frappe.whitelist()
@@ -287,7 +313,7 @@ def update_quotation_address(address: dict):
 	if address.get("is_store_pickup", False):
 		quotation.custom_store = address.get("store_pickup_warehouse", "")
 		quotation.custom_is_store_pickup = True
-		quotation.save(ignore_permissions=True)
+		save_cart_quotation(quotation)
 
 		return {"message": _("Addresses updated successfully")}
 	quotation.custom_is_store_pickup = False
@@ -327,7 +353,7 @@ def update_quotation_address(address: dict):
 		contact.append("phone_nos", {"phone": shipping_phone})
 
 	contact.save(ignore_permissions=True)
-	quotation.save(ignore_permissions=True)
+	save_cart_quotation(quotation)
 
 	return {"message": _("Addresses updated successfully")}
 
@@ -448,8 +474,7 @@ def apply_coupon_code(applied_code):
 	quotation = _get_cart_quotation()
 	validate_cart_is_not_in_checkout(quotation.name)
 	quotation.coupon_code = coupon_name
-	quotation.flags.ignore_permissions = True
-	quotation.save()
+	save_cart_quotation(quotation)
 	return {"message": _("Coupon code applied successfully")}
 
 
@@ -468,11 +493,10 @@ def _remove_coupon_code(quotation):
 		item.discount_amount = 0
 		item.distributed_discount_amount = 0
 		item.rate = item.price_list_rate
-	quotation.flags.ignore_permissions = True
 	quotation.calculate_taxes_and_totals()
-	quotation.save()
+	save_cart_quotation(quotation)
 	quotation.discount_amount = 0
-	quotation.save()
+	save_cart_quotation(quotation)
 
 
 def add_billing_address(party_name, address):
@@ -527,7 +551,6 @@ def update_delivery_charges(quotation):
 		quotation.shipping_rule = None
 		quotation.taxes = []
 		quotation.calculate_taxes_and_totals()
-		quotation.save(ignore_permissions=True)
 	else:
 		set_charges(quotation)
-		quotation.save(ignore_permissions=True)
+	save_cart_quotation(quotation)

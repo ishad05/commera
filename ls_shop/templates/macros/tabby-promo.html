@@ -1,10 +1,14 @@
 {% macro tabby(selector='tabby-promo',price=100) %}
 
+{# Tabby only settles in AED|SAR|KWD - on any other store currency the widget would quote
+   an installment plan in the wrong currency, so it is not rendered at all. #}
+{% set store_currency = get_store_currency() %}
+{% if store_currency in ['AED', 'SAR', 'KWD'] %}
 <script src="https://checkout.tabby.ai/tabby-promo.js"></script>
 <script defer>
     new TabbyPromo({
      selector: '#{{selector}}', // required, content of tabby Promo Snippet will be placed in element with that selector.
-     currency: 'SAR', // required, AED|SAR|KWD only supported, with no spaces or lowercase.
+     currency: '{{ store_currency }}', // required, AED|SAR|KWD only supported, with no spaces or lowercase.
      price: '{{price}}', // required, price of the product. 2 decimals max for AED|SAR and 3 decimals max for KWD.
      lang: '{{ frappe.lang }}', // Optional, en|ar only supported
      source: 'product', // Optional, snippet placement; `product` for product page and `cart` for cart page.
@@ -12,5 +16,6 @@
    });
 </script>
 <div class="min-h-[98px]" id="{{selector}}"></div>
+{% endif %}
 
 {% endmacro %}

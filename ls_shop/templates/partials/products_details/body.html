@@ -61,13 +61,13 @@
 
                 <a href="/{{frappe.lang}}/products?brands={{product.brand | urlencode}}"
                     class="mb-2 text-xl font-bold md:mb-0 md:text-3xl ">
-                    {{ _(product.brand|title) }}
+                    {{ _(product.brand) }}
                 </a>
                 <h2 class="mb-3.5 text-base md:mb-6 md:text-xl ">
                     {% if frappe.lang == "en" %}
-                    {{ _(product.item_name|title) }}
+                    {{ _(product.item_name) }}
                     {% else %}
-                    {{ _(product.custom_item_name_ar or product.item_name|title) }}
+                    {{ _(product.custom_item_name_ar or product.item_name) }}
                     {% endif %}
                 </h2>
                 <div class="mb-5 flex items-center md:mb-6.5">
@@ -254,18 +254,21 @@
                                 <div>
                                     <ul>
                                         <li>
-
-                                            <span class="text-base font-medium  ">{{_(selected_item.style_code) or ''}}</span>, <span
-                                                class="text-base font-medium  ">{{_(product_variant.attribute_value|title)}}</span>
+                                            <span class="text-base font-medium  ">
+                                                {%- if selected_item.style_code %}{{ _(selected_item.style_code) }}, {% endif -%}
+                                                {{ _(product_variant.attribute_value|title) }}
+                                            </span>
                                         </li>
-                                          <li>
-                                            <span class="text-base font-medium  ">{{_(product_variant.attribute_name|title
-                                                or '')}}</span>
-                                        </li>
+                                        {% if product_variant.attribute_name %}
                                         <li>
-                                            <span class="text-base font-medium  ">{{_(selected_item.material|title) or ''}}</span>
+                                            <span class="text-base font-medium  ">{{ _(product_variant.attribute_name|title) }}</span>
                                         </li>
-
+                                        {% endif %}
+                                        {% if selected_item.material %}
+                                        <li>
+                                            <span class="text-base font-medium  ">{{ _(selected_item.material|title) }}</span>
+                                        </li>
+                                        {% endif %}
                                     </ul>
                                     {% if selected_item.description != selected_item.item_code %}
                                     {% if frappe.lang == "en" %}

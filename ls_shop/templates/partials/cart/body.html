@@ -61,9 +61,9 @@
 	</div>
 	<div class="mb-6 md:mb-10">
 		<h1 class="mb-4 text-3xl font-semibold">{{ _('Your bag') }}</h1>
-		<h3 class="text-lg font-medium flex">
-			{{ _('Total') }} (<span x-text="$store.cart.selected_count"></span><span class=""> &nbsp; {{ _('items') }}) </span>{{get_currency_symbol()}} <span
-				x-text="$store.cart.total.toFixed(2)" class="ps-0.5"></span>
+		<h3 class="text-lg font-medium flex items-center gap-2">
+			<span>{{ _('Total') }} (<span x-text="$store.cart.selected_count"></span> {{ _('items') }})</span>
+			<span class="flex">{{get_currency_symbol()}}<span x-text="$store.cart.total.toFixed(2)"></span></span>
 		</h3>
 	</div>
 	<div class="flex flex-col ipad:flex-row md:gap-20">
@@ -193,6 +193,15 @@
 					</li>
 				</template>
 			</ol>
+			<div x-show="!cart_loading && $store.cart.items.length === 0" x-cloak
+				class="flex flex-col items-center justify-center py-16 text-center">
+				<p class="text-lg font-medium">{{ _('Your bag is empty') }}</p>
+				<p class="mt-1 text-sm text-gray-500">{{ _('Browse the store and add something you like.') }}</p>
+				<a href="/{{ frappe.lang }}/products"
+					class="mt-6 rounded-lg bg-accent px-6 py-3 text-sm font-semibold uppercase text-white hover:bg-secondary-accent">
+					{{ _('Continue shopping') }}
+				</a>
+			</div>
 		</div>
 		<div class="flex flex-1 flex-col">
 			<div class="flex w-full flex-col">
@@ -240,7 +249,7 @@
 					{% else %}
 					<button x-on:click="proceed_to_checkout($data)"
 						class="w-full h-12  py-3 bg-accent hover:bg-secondary-accent rounded-lg flex justify-center items-center gap-2.5 cursor-pointer disabled:opacity-75"
-						:disabled="checkout_loading?true:false">
+						:disabled="checkout_loading || $store.cart.selected_count === 0">
 						<span class="flex items-center text-white text-base font-semibold uppercase">
 					
 							<span>{{ _("proceed to checkout") }}</span>
